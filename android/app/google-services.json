@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "433406558921",
+    "project_id": "yokedin-806c2",
+    "storage_bucket": "yokedin-806c2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:433406558921:android:a8ae148532fbf1f1a08318",
+        "android_client_info": {
+          "package_name": "com.example.yoked_in"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMDwBiV6of1TTq-Oy6K9k1pd9C_FZJUp8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
