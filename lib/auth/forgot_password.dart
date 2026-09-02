@@ -26,7 +26,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
           child: Text(
             "Forgot Password",
             style: TextStyle(
-              fontWeight:FontWeight.bold,
+              fontWeight: FontWeight.bold,
               fontSize: 16,
               color: Colors.red,
             ),
@@ -88,17 +88,17 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                     await auth
                         .sendPasswordResetEmail(email: emailController.text)
                         .then((value) {
-                          // if success, then show this message
-                          showSnackBar(context, "Email password reset link has been sent to your email");
-                        })
-                        .onError((error, stackTrace) {
-                          // if unsuccess, then show this message
-                          showSnackBar(context, error.toString());
-                        });
-                        //terminate the dialog after sending the password forgot link
-                        Navigator.pop(context);
-                        //clear the field
-                        emailController.clear();
+                      // if success, then show this message
+                      showSnackBar(context,
+                          "Email password reset link has been sent to your email. if it does not appear in your inbox, check your spam");
+                    }).onError((error, stackTrace) {
+                      // if unsuccess, then show this message
+                      showSnackBar(context, error.toString());
+                    });
+                    //terminate the dialog after sending the password forgot link
+                    Navigator.pop(context);
+                    //clear the field
+                    emailController.clear();
                   },
                   child: Text(
                     "Send",

@@ -21,8 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               "Congrats",
             ),
-            MyButton(onTab: ()async{
-              await AuthServices().signOut();
+            MyButton(onTap: ()async{
+              await AuthService().signOut();
               Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context)=>LoginScreen()));
             }, text: "Sign Out"),
           ],
