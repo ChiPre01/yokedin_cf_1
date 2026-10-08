@@ -7,7 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:yoked_in/chat/user_profile.dart';
+import 'package:yoked_in/chat/user_profile_model.dart';
 
 /// Notifier
 class ProfileNotifier extends StateNotifier<ProfileState> {

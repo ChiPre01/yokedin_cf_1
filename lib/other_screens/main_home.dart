@@ -9,6 +9,7 @@ import 'package:yoked_in/group_chat/group_screen.dart';
 import 'package:yoked_in/other_screens/profile_screen.dart';
 import 'package:yoked_in/other_screens/user_list_screen.dart';
 import 'package:yoked_in/provider/chat_provider.dart';
+import 'package:yoked_in/provider/group_chat_provider.dart';
 
 class MainHomeScreen extends ConsumerStatefulWidget {
   const MainHomeScreen({super.key});
@@ -151,6 +152,7 @@ class _MainHomeScreenState extends ConsumerState<MainHomeScreen>
         ref.invalidate(usersProvider);
         ref.invalidate(requestsProvider);
         ref.invalidate(chatsProvider);
+        ref.invalidate(groupsProvider);
       }
     } catch (e) {
       print('Error initializing user session: $e');
@@ -172,6 +174,7 @@ class _MainHomeScreenState extends ConsumerState<MainHomeScreen>
             ref.invalidate(usersProvider);
             ref.invalidate(requestsProvider);
             ref.invalidate(chatsProvider);
+            ref.invalidate(groupsProvider);
           }
           break;
         case AppLifecycleState.paused:
@@ -236,6 +239,9 @@ class _MainHomeScreenState extends ConsumerState<MainHomeScreen>
           setState(() => _currentIndex = index);
           // Refresh providers when switching tabs
           if (index == 1) {
+            // Groups tab
+            ref.invalidate(groupsProvider);
+          } else if (index == 2) {
             // Users tab
             ref.invalidate(usersProvider);
           } else if (index == 0) {

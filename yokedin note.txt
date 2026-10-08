@@ -1,0 +1,232 @@
+YOKED IN — LIBRARY GUIDE
+Reviewed: 10 September 2026
+
+This is a file-by-file guide to the Flutter source under lib/. The app is a Firebase-backed chat application with email/Google sign-in, direct messages, groups, image sharing, push notifications, presence, and Zego-powered calls. Riverpod providers connect Firebase streams/services to the widgets.
+
+ARCHITECTURE AT A GLANCE
+
+main.dart starts Firebase, notifications, permissions, Riverpod and the call SDK. Authentication creates/validates a user record. Services read and write Firestore/Storage. Providers subscribe to live data and expose it to UI. Screens compose the experience; widgets are reusable visual pieces. Direct-message records live mainly in users, messageRequests, friendships, chats and messages. Group records use groups and groupMessages.
+
+AUTHENTICATION (lib/auth)
+
+auth_model.dart
+Defines AuthFormState, the immutable state behind both email sign-up and login forms. It keeps the entered name, email and password; individual validation messages; loading status; and whether the password is hidden. isFormValid allows the UI to enable its submit button only when the relevant errors are absent. copyWith produces a changed state without mutating the old one.
+
+auth_provider.dart
+Defines AuthFormNotifier and authFormProvider. The notifier updates one field at a time, validates the name (minimum six characters when present), checks email against a regular expression, validates a six-character minimum password, toggles password visibility, and controls the loading spinner. Widgets watch this provider so form feedback updates immediately.
+
+auth_services.dart
+Contains AuthMethod, the email/password authentication service, plus authMethodProvider. signUpUser creates the Firebase Auth account, sets its display name, creates the matching Firestore users/{uid} document, obtains/stores the FCM device token, and schedules a retry if a token is not ready. loginUser signs in then refreshes the stored token/presence. signOut marks the person offline with a server last-seen time before signing out.
+
+auth_validation.dart
+Provides AuthValidationService, a safety check used when auth state changes. It confirms there is a signed-in Firebase user, reloads that user to catch deleted/disabled accounts, and verifies a corresponding Firestore user document exists. Invalid or removed accounts are signed out. forceSignOut is a small direct sign-out helper.
+
+google_auth.dart
+Defines the compact GoogleAuthState model. It represents Google sign-in UI state with isLoading and an optional error, and provides copyWith for immutable state changes.
+
+google_auth_provider.dart
+Defines GoogleAuthNotifier and googleAuthProvider. It sets the loading/error state, delegates the real sign-in to FirebaseServices, waits briefly for the Firebase auth stream to settle, then replaces the current page with MainHomeScreen after success. Cancellation and errors are represented in provider state so the button can react.
+
+google_auth_service.dart
+Implements FirebaseServices and firebaseServicesProvider for Google authentication. It initializes Google Sign-In with the configured server client ID, obtains Google tokens/scopes, exchanges them for a Firebase credential, and signs in. For first-time Google users it creates a Firestore profile including provider, presence and FCM token; for all users it refreshes the token. Its signOut method marks presence offline, signs out of Google, then signs out of Firebase.
+
+google_login_screen.dart
+Builds the reusable “Continue with Google” button used on the login page. It watches Google auth state, disables itself and displays progress during authentication, uses the branded image asset, shows a friendly toast on error, then clears the transient error so it is not shown again.
+
+notification_service.dart
+Centralizes Firebase Cloud Messaging and local-notification work as a singleton. It registers the top-level background FCM handler, configures Android/iOS local notification settings and an Android high-priority channel, displays foreground notifications, and observes notification opens. It obtains FCM tokens (with iOS APNs-aware handling), updates token changes in Firestore, updates token/presence after login, and requests notification permission. Tap/open handlers currently log the payload; they are the intended place for navigation to a chat/group from a notification.
+
+retry_token_update.dart
+Contains a background-friendly fallback when a newly authenticated device does not yet have an FCM token. It waits five seconds, tries to obtain and store the token in users/{uid}, and makes one more attempt after ten seconds. Errors are deliberately non-blocking, so they do not prevent login.
+
+token_update.dart
+Contains the same retryTokenUpdate implementation as retry_token_update.dart. Functionally it is a duplicate fallback token updater: delayed token retrieval, one retry, then Firestore update. Keeping two copies with the same public function name can become confusing; current imports use retry_token_update.dart.
+
+sign_up_screen.dart
+Renders the email registration form: name, email and password fields with live errors, password visibility control, loading UI, a sign-up button, and a link back to login. It reads/writes AuthFormNotifier and calls AuthMethod.signUpUser. A successful registration returns the user to the login screen and displays a success toast; failures are displayed as errors.
+
+user_login_screen.dart
+Renders the email login page. It uses the shared auth form state for email/password validation and spinner behavior, calls AuthMethod.loginUser, routes to MainHomeScreen on success, embeds GoogleLoginScreen as an alternative, and links to account creation. It uses shared button, navigation and notification helpers.
+
+zego_secret_key.dart
+Holds ZegoConfig constants used to initialize calls: the app ID, app-sign value, and call-ID prefix. It is the single configuration source imported by direct and group calling screens. Because it contains a credential-like app-sign constant, production deployments should protect/rotate it according to Zego’s guidance rather than treating it as ordinary UI code.
+
+DIRECT CHAT DATA AND SERVICES (lib/chat)
+
+message_model.dart
+Defines MessageModel, the Firestore representation of a direct-chat item. A message contains sender/message identity, text, optional timestamp, type, per-user read timestamps, optional image URL, and optional call metadata. fromMap carefully converts Firestore Timestamp values while allowing server timestamps still pending; toMap converts it back and uses a server timestamp when none is available.
+
+model.dart
+Defines two Firestore models. MessageRequestModel represents a pending/accepted/rejected friend/message request, including sender identity and photo. ChatModel represents a direct conversation: its stable ID, two participants, preview metadata, last-message time, and unread count keyed by user ID. Both have fromMap/toMap conversions for service use.
+
+user_model.dart
+Defines the app-level UserModel mapped from a users document. It carries UID, display name, email, optional profile photo, online flag, and optional last-seen timestamp. Services and widgets use this instead of directly handling untyped Firestore maps.
+
+user_list_model.dart
+Defines UserListTileState, the per-person relationship state used in the people list. It tracks a local loading flag, whether users are already friends, whether there is a pending request and who sent it, plus that request’s document ID. copyWith lets the relationship button update cleanly.
+
+user_profile_model.dart
+Defines ProfileState, which drives the current-user profile screen. It includes profile photo, name, email, account creation date, UID, loading state, and photo-upload state. Its immutable copyWith method allows progressive updates during loading and upload.
+
+chat_services.dart
+This is the main direct-messaging data layer, ChatService. It streams all other users, updates online presence, marks a conversation’s messages read in a Firestore batch, sends text/image messages, updates last-message/unread counters, and writes notification documents for a Cloud Function to deliver. It creates and handles message requests, accepts a request by atomically creating a friendship, chat, and system message, streams the user’s chats/messages, and can remove a friendship/chat/messages. It also provides deterministic sorted chat IDs, typing indicators with stale-status filtering, Firebase Storage image upload, and call-history messages. chatServiceProvider exposes it to Riverpod.
+
+chat_list.dart
+Builds the direct-chat inbox screen. It watches the chat provider for live conversations, gets the other participant’s UserModel to show their name/photo/presence, formats previews/times, displays unread counts, supports pull-to-refresh, and routes to ChatScreen. It also links to RequestsScreen so received friend requests can be reviewed.
+
+chat_screen.dart
+Implements the stateful one-to-one conversation page. It initializes Zego signaling/call support, marks the chat read, manages text and focus controllers, debounces typing-state changes, sends text, opens image source options, previews an image/caption, and delegates upload/send to ChatService. Its build method combines the title, message stream, typing indicator, call controls, input area, and media actions. dispose cancels timers/controllers and clears typing state.
+
+chat_title.dart
+Builds the top bar for a direct chat. It shows the other user’s identity and online/typing state using Riverpod, includes navigation back behavior, and provides actions related to the active conversation. It keeps display logic out of the large ChatScreen file.
+
+message_image.dart
+Displays a normal direct-message bubble or image message. It selects alignment/style based on sender, renders captions, image thumbnails and time/status information, and opens an image in the reusable full-screen viewer when tapped. It also handles special message categories passed through MessageModel.
+
+video_audio_history.dart
+Renders call-history messages inside a direct chat. It interprets message call fields (audio/video, status and optional duration), chooses the matching icon/text/color, and formats the time so call events look distinct from ordinary messages.
+
+GROUP DATA, SERVICES AND SCREENS (lib/group_chat)
+
+group_chat_model.dart
+Defines GroupModel and GroupMessageModel. GroupModel describes the group ID/name/photo, members and admins, creator/time, recent-message preview, editing permission flag, call initiator, and per-member unread counts; helper methods answer membership/admin/unread questions. GroupMessageModel describes an individual group text/image/system message, including sender identity/photo and robust timestamp conversion. Both serialize to/from Firestore maps.
+
+group_chat_services.dart
+GroupChatService is the group equivalent of ChatService. It permits group creation only with friends, creates the group and initial system message, streams groups/messages, uploads images, sends text/image messages, updates last-message and unread counts for every member, and writes per-member notification documents. It adds/removes members, lets users leave, changes names/photos, promotes/demotes admins, toggles whether anyone may edit group info, maintains group typing status, marks messages read, and deletes groups. Membership-changing/admin actions also create system messages so the history explains what happened.
+
+create_group_screen.dart
+Provides the stateful form for starting a new group. It collects the name, lets the creator select a group photo, selects eligible people through the providers, uploads the image if chosen, and invokes GroupChatService.createGroup. It owns temporary form/image state and releases its controller when removed.
+
+group_screen.dart
+Builds the group inbox/list. It subscribes to groups belonging to the signed-in user, renders group photo/name/last-message/time/unread information, supports refresh, navigates into GroupChatScreen, and exposes the create-group action.
+
+group_chat_screen.dart
+Implements a live group conversation page. It initializes Zego for the group call, observes the current group document to detect removal, marks group messages read, sends text and selected images, handles a preview before uploading, updates typing state, and combines group info, member count, typing display, message list, input bar, and call button. It owns text/focus/timer resources and cleans them up in dispose.
+
+group_info_screen.dart
+Composes the group-details page from smaller sections. Given a live GroupModel, it determines the current member’s role and shows group identity editing, member count/list, add-member controls, admin controls, and leave/delete controls as appropriate. It is a coordinator rather than the home of each action’s implementation.
+
+group_identity.dart
+Renders and edits the group’s photo and name. It checks whether the current user is an admin or the group allows member editing, uses ImagePicker/Storage flow for a new photo, asks for a new name, calls the group service/provider to persist changes, and gives feedback through the shared snackbar helper.
+
+member_list_section.dart
+Displays the group membership list with member profile/presence information. For admins it offers contextual actions such as promote/demote or remove, while respecting the current user/role. It delegates mutations to the group service and keeps the group-info screen smaller.
+
+admin_control_section.dart
+Displays the admin-only setting governing whether non-admin members may edit group details. It binds a switch/control to GroupModel.anyoneCanEditInfo and calls toggleGroupEditPermission, handling the asynchronous update through the provider state.
+
+leave_delete_group.dart
+Renders leave and, for authorized users, delete actions. It confirms the user’s intent in dialogs, calls the group service to remove only the current member or remove the group, presents feedback, and navigates away after a successful action.
+
+SHARED GROUP WIDGETS (lib/group_widgets)
+
+add_member_button_section.dart
+Presents the add-members UI used from group details. It reads availableMembersProvider, which filters out existing members and non-friends, shows selection/dialog UI, then calls the group service to add each selected eligible user. It also provides a members-list dialog for awareness of current membership.
+
+chat_input_bar.dart
+Builds the compact group message composer. It receives the controller/callbacks from GroupChatScreen, calls the group typing notifier when text changes/focus changes, exposes send/image controls, and keeps presentation/gesture work separate from message delivery.
+
+chat_message_list.dart
+Subscribes to group messages and builds the scrolling list. It identifies messages sent by the current user, uses date/time helper rules to insert date separators, displays loading/error/empty states, and delegates individual bubble rendering to ChatMessage.
+
+chat_message.dart
+Renders one group-chat bubble. It presents sender identity/photo, text or image content, system-message treatment, direction/style for self versus others, and time formatting. It is intentionally focused on one item rather than Firestore subscription logic.
+
+group_call_button.dart
+Owns the group audio/video call action. It loads invitee/member details, initializes the Zego call configuration, notifies group members through Firestore notification documents when a call starts, then provides feedback for success/error. Its stateful design supports asynchronous invitee loading before the call UI is launched.
+
+group_member_count.dart
+Shows a live member count for a group. It watches the matching Firestore group document so the number changes after members are added, removed, or leave, without requiring the enclosing screen to calculate it.
+
+image_preview.dart
+Shows the confirmation dialog before a chosen group image is sent. It displays the local image, accepts a caption/action from the parent, reflects upload state through group providers, and invokes the parent’s confirmed-send callback rather than writing data itself.
+
+RIVERPOD PROVIDERS (lib/provider)
+
+provider.dart
+Defines the authentication providers shared across the app. authValidationServiceProvider supplies AuthValidationService. authStateProvider streams Firebase auth changes and asynchronously validates any signed-in user against Auth and Firestore before yielding it, preventing a stale/deleted account from entering the authenticated UI.
+
+chat_provider.dart
+Contains direct-chat Riverpod wiring. It provides ChatService, then StateNotifiers which subscribe to user, pending-request and chat streams and expose AsyncValue loading/data/error states with refresh/dispose behavior. It also provides the search text and filtered users list, refreshes relevant data after authentication, and supplies a family-based TypingNotifier for each chat’s typing stream and updates.
+
+group_chat_provider.dart
+Contains group Riverpod wiring. It exposes GroupChatService; keeps the user’s groups in a stream-backed AsyncValue; provides a family-based group typing notifier; streams an individual group document; finds eligible friend members to add; fetches a member’s UserModel; and maintains lightweight per-group loading/upload flags plus a computed list of users currently typing.
+
+user_list_provider.dart
+Defines the provider family behind each person row in the users list. UserListTileNotifier first checks friendship, then checks outgoing/incoming request documents to derive the right button state. It sends or accepts requests through ChatService and invalidates chats/requests providers after acceptance so the rest of the UI refreshes.
+
+user_profile_provider.dart
+Defines ProfileNotifier and profileProvider for the signed-in account profile. It listens to Firebase Auth changes, loads the corresponding Firestore profile, clears state on logout, supports manual refresh, chooses a replacement picture from the gallery, uploads it to Firebase Storage, writes its URL back to Firestore, and exposes loading/upload state to the screen.
+
+user_status_provider.dart
+Defines a simple StreamProvider.family<bool, String> for real-time user presence. Given a UID, it listens to that user’s Firestore document and returns isOnline (false when data is absent). Chat/list/member widgets use it for live online indicators.
+
+APP AND OTHER SCREENS (lib/other_screens plus main.dart)
+
+main.dart
+The application bootstrap. main initializes Flutter bindings, Firebase using firebase_options.dart, notification services/token listening, platform permissions, and Zego’s signaling plugin before launching ProviderScope/MyApp. MyApp observes app lifecycle, validates current authentication, updates online/offline status through the chat provider, and builds the MaterialApp that routes through AuthenticatedWrapper.
+
+firebase_options.dart
+Generated Firebase configuration for the supported Flutter platforms. DefaultFirebaseOptions selects the correct FirebaseOptions based on the current platform (web, Android, iOS, macOS, Windows, etc.) so Firebase.initializeApp can target this project’s Firebase application. It is configuration metadata rather than app behavior.
+
+main_home.dart
+Implements the authenticated shell/home page. It controls the primary navigation between direct chats, groups, user discovery and profile views, initializes the signed-in user session/presence, observes lifecycle changes to set online/offline state, and cleans up its observers/timers. This is the main destination after a valid login.
+
+profile_screen.dart
+Builds the current user’s profile page. It watches ProfileState, shows the stored photo/name/email/account date, exposes the profile-image upload action, and signs out through the authentication service. It also navigates back to login/clears dependent user UI as the auth state changes.
+
+requests_screen.dart
+Shows incoming pending friend/message requests. It subscribes to RequestsNotifier, displays requester identity/details, lets the user accept or reject, reflects loading/errors, and refreshes request/chat state after a decision.
+
+user_list_screen.dart
+Shows discoverable users other than the current user. It watches the searchable, stream-driven list from chat_provider, offers pull-to-refresh and a search field, and renders each person with UserListTile. It is the entry point for sending or responding to relationship requests.
+
+WRAPPER STATE (lib/wrapper_state)
+
+authentication_wrapper.dart
+Routes the top-level UI according to authStateProvider. While Firebase validation is pending it displays loading; an authenticated user gets MainHomeScreen; no valid user gets UserLoginScreen. It is the gate that prevents authenticated pages appearing before account validation completes.
+
+app_state_manager.dart
+Defines AppStateManager, a ChangeNotifier and WidgetsBindingObserver for user-session/presence lifecycle work. It initializes the signed-in user’s session and notification token, records online/offline and last-seen values in Firestore as the app resumes/pauses, determines the auth provider type, and removes its lifecycle observer when disposed. It represents an alternate/centralized lifecycle manager alongside lifecycle handling in MyApp/MainHomeScreen.
+
+GENERAL HELPERS (lib/helper)
+
+current_time.dart
+Returns a small Flutter widget containing a formatted time for a nullable DateTime, using intl. It is a presentation helper for message bubbles and gracefully has a fallback for absent timestamps.
+
+date_time_helper.dart
+Provides direct-chat date-header logic. formatDateHeader turns a message date into labels such as Today/Yesterday or a formatted calendar date. shouldShowDateHeader compares adjacent MessageModel timestamps so the list inserts one header per day rather than repeating it for every message.
+
+group_chat_date_time_manager.dart
+Provides analogous group-message date handling. getDateLabel formats a date into an appropriate human-readable label and shouldShowDateSeparator decides whether a group message begins a new date section.
+
+navigation_helper.dart
+Wraps common Navigator operations in named static methods: push, named push, replacement, pop, and push-and-remove-until. Screens use it to express navigation intent consistently and avoid repeating MaterialPageRoute boilerplate.
+
+time_format.dart
+Contains small pure formatting helpers. formatMessageTime presents a nullable message time, while formatTime formats a required DateTime. Inbox previews, message bubbles and call records use these instead of duplicating intl formatting rules.
+
+REUSABLE WIDGETS (lib/widgets)
+
+button.dart
+Defines MyButton, the shared styled button used by auth flows. It accepts callback/text inputs and produces a consistent full-width, rounded Material-style action control, including disabled behavior when the callback is null.
+
+dot_indicator.dart
+Defines ThreeDots, an animated three-dot typing indicator. Its state owns an animation controller, builds dots with changing opacity/scale, starts the animation on initialization, and disposes it correctly. Chat titles/screens use it to make live typing visible.
+
+full_screen_image.dart
+Provides showFullScreenImage, a helper that opens a supplied remote image URL in an immersive overlay/page. It adds a close/back affordance and image loading/error behavior so chat widgets do not have to duplicate full-screen viewer code.
+
+message_status_icon.dart
+Builds the sent/read status icon for an outgoing direct message. It compares message readBy data with the current Firebase user and reads Firestore-compatible message state to choose the appropriate visual status, keeping receipt-display rules out of the message bubble.
+
+user_list_tile.dart
+Builds one user row for the discovery list. It displays name/photo/online status, watches that user’s UserListTileState, chooses the proper trailing action (send request, pending, accept, or chat), shows feedback, and opens ChatScreen for friends using the same sorted user-ID chat-ID convention as ChatService.
+
+utilis.dart
+Defines SnackbarType and showAppSnackbar, the shared user-feedback helper. It uses Cherry Toast to show consistently styled success or error messages with the supplied description/context. Many async actions call it after service results.
+
+video_audio_call_button.dart
+Provides the direct-chat call control used by ChatScreen. It reads active chat/user state and builds the Zego prebuilt call button/configuration for audio/video calling, leaving the screen responsible for surrounding layout and chat-history handling.
+
+END OF LIBRARY GUIDE

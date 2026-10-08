@@ -51,7 +51,7 @@ class SignupScreen extends ConsumerWidget {
               height: height / 2.4,
               width: double.maxFinite,
               decoration: BoxDecoration(),
-              child: Image.asset("assets/77881.jpg", fit: BoxFit.cover),
+              child: Image.asset("images/yokedinB1.jpg", fit: BoxFit.cover),
             ),
             SizedBox(height: 20),
             Padding(

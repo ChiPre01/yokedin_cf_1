@@ -50,7 +50,7 @@ class UserLoginScreen extends ConsumerWidget {
             SizedBox(
               height: height / 2.1,
               width: double.maxFinite,
-              child: Image.asset("assets/2752392.jpg", fit: BoxFit.cover),
+              child: Image.asset("images/yokedinB2.jpg", fit: BoxFit.cover),
             ),
             Padding(
               padding: EdgeInsets.all(15),
