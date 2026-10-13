@@ -254,7 +254,7 @@ class _MainHomeScreenState extends ConsumerState<MainHomeScreen>
           BottomNavigationBarItem(icon: Icon(Icons.wechat), label: "Group"),
           BottomNavigationBarItem(
             icon: const Icon(Icons.people),
-            label: 'Users',
+            label: 'Connects',
           ),
           const BottomNavigationBarItem(
             icon: Icon(Icons.person),

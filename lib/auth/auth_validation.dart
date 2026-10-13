@@ -1,4 +1,3 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -6,46 +5,63 @@ class AuthValidationService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Validate if current user still exists in Firestore
   Future<bool> validateCurrentUser() async {
-    try {
-      final currentUser = _auth.currentUser;
+    final currentUser = _auth.currentUser;
 
-      // If no user is logged in, return false
-      if (currentUser == null) {
+    if (currentUser == null) {
+      return false;
+    }
+
+    try {
+      await currentUser.reload();
+
+      final refreshedUser = _auth.currentUser;
+
+      if (refreshedUser == null) {
         return false;
       }
 
-      // Reload user data to check if account still exists in Firebase Auth
-      await currentUser.reload();
-
-      // Check if user exists in Firestore
+      // A valid Firebase Authentication account does not have to
+      // already possess a Firestore profile document.
+      //
+      // Google sign-in may still be creating that document.
       final userDoc = await _firestore
           .collection('users')
-          .doc(currentUser.uid)
+          .doc(refreshedUser.uid)
           .get();
 
-      // If user doesn't exist in Firestore, sign out
       if (!userDoc.exists) {
-        await _auth.signOut();
-        return false;
+        print(
+          '[AUTH VALIDATION] Firestore profile is missing for '
+          '${refreshedUser.uid}. Keeping the authenticated user signed in.',
+        );
       }
 
       return true;
     } on FirebaseAuthException catch (e) {
-      // If user is deleted from Firebase Auth, sign out
-      if (e.code == 'user-not-found' || e.code == 'user-disabled') {
+      if (e.code == 'user-not-found' ||
+          e.code == 'user-disabled') {
         await _auth.signOut();
         return false;
       }
+
+      print('[AUTH VALIDATION] Firebase Auth error: ${e.code}');
       return false;
+    } on FirebaseException catch (e) {
+      // A Firestore/network error does not prove that the
+      // Firebase Authentication account is invalid.
+      print(
+        '[AUTH VALIDATION] Firebase error: '
+        '${e.code} - ${e.message}',
+      );
+
+      return true;
     } catch (e) {
-      print('Error validating user: $e');
-      return false;
+      print('[AUTH VALIDATION] Unexpected error: $e');
+      return true;
     }
   }
 
-  // Force sign out
   Future<void> forceSignOut() async {
     await _auth.signOut();
   }

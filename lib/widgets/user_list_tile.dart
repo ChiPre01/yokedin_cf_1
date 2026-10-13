@@ -75,7 +75,7 @@ class UserListTile extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         onPressed: () => _navigateToChat(context),
 
-        child: buttonName(Icons.chat, "Chat"),
+        child: buttonName(Icons.chat, "Connected"),
       );
     }
     // Current user SENT the request → Show "Pending"
@@ -157,31 +157,37 @@ class UserListTile extends ConsumerWidget {
           }
         }
       },
-      child: buttonName(Icons.person_add, "Add friend"),
+      child: buttonName(Icons.person_add, "Click To Connect"),
     );
   }
 
-  SizedBox buttonName(IconData icon, String name) {
-    return SizedBox(
-      width: 100,
-      height: 32,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.white, size: 20),
-          SizedBox(width: 5),
-          Text(
+SizedBox buttonName(IconData icon, String name) {
+  return SizedBox(
+    width: 150,
+    height: 40,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: Colors.white, size: 18),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
             name,
-            style: TextStyle(
-              fontSize: 14,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
               color: Colors.white,
               fontWeight: FontWeight.w600,
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
+
 
   // Navigate to chat screen when "Chat" button clicked
   Future<void> _navigateToChat(BuildContext context) async {

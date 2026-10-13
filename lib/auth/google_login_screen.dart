@@ -1,30 +1,34 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yoked_in/auth/google_auth_provider.dart';
 import 'package:yoked_in/widgets/utilis.dart';
 
 class GoogleLoginScreen extends ConsumerWidget {
   const GoogleLoginScreen({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(googleAuthProvider);
     final authNotifier = ref.read(googleAuthProvider.notifier);
 
-    // Show error snackbar if error exists
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (authState.error != null) {
-        // print("Error:${authState.error!} ");
-        showAppSnackbar(
-          context: context,
-          type: SnackbarType.error,
-          description: "Unable to login",
-        );
-        Future.delayed(const Duration(milliseconds: 100), () {
-          ref.read(googleAuthProvider.notifier).clearError();
+    ref.listen(googleAuthProvider, (previous, next) {
+      if (next.error != null && next.error != previous?.error) {
+        debugPrint('[GOOGLE LOGIN SCREEN] Actual error: ${next.error}');
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+
+          showAppSnackbar(
+            context: context,
+            type: SnackbarType.error,
+            description: next.error!,
+          );
         });
       }
     });
+
     return Column(
       children: [
         MaterialButton(
@@ -45,16 +49,16 @@ class GoogleLoginScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Image.asset(
-                              "images/yokedinGL.png",
-                              height: 35,
-                              fit: BoxFit.cover,
-                            ),
-                SizedBox(width: 15),
+                  'images/yokedinGL.png',
+                  height: 35,
+                  fit: BoxFit.cover,
+                ),
+                const SizedBox(width: 15),
                 Text(
                   authState.isLoading
-                      ? "Signing In..."
-                      : "Continue with Google",
-                  style: TextStyle(
+                      ? 'Signing In...'
+                      : 'Continue with Google',
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
                     color: Colors.black,
@@ -65,7 +69,11 @@ class GoogleLoginScreen extends ConsumerWidget {
             ),
           ),
         ),
-        if (authState.isLoading) CircularProgressIndicator(color: Colors.black),
+        if (authState.isLoading)
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: CircularProgressIndicator(color: Colors.black),
+          ),
       ],
     );
   }

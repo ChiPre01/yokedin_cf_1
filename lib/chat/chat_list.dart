@@ -53,7 +53,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
         backgroundColor: Colors.white,
         automaticallyImplyLeading: false,
         title: const Text(
-          'Chats',
+          'Connections',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
         centerTitle: false,
@@ -118,7 +118,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Go to Users tab to send message requests',
+                          'Go to Connects tab to send message requests',
                           style: TextStyle(color: Colors.grey),
                         ),
                       ],

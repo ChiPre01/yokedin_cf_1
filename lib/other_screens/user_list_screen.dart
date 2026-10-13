@@ -41,7 +41,7 @@ class _UsersListScreenState extends ConsumerState<UsersListScreen> {
       backgroundColor: Colors.white,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('All Users'),
+        title: const Text('Build Connections'),
         backgroundColor: Colors.white,
         centerTitle: true,
         bottom: PreferredSize(

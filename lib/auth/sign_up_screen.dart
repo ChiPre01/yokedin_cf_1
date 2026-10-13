@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yoked_in/auth/auth_provider.dart';
 import 'package:yoked_in/auth/auth_services.dart';
+import 'package:yoked_in/auth/google_login_screen.dart';
 import 'package:yoked_in/auth/user_login_screen.dart';
 import 'package:yoked_in/helper/navigation_helper.dart';
 import 'package:yoked_in/widgets/button.dart';
@@ -113,6 +114,22 @@ class SignupScreen extends ConsumerWidget {
                           buttonText: "Sign Up",
                         ),
                   SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(height: 1, color: Colors.black26),
+                      ),
+                      Text(" or "),
+                      Expanded(
+                        child: Container(height: 1, color: Colors.black26),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 15),
+                  // for google auth
+                  GoogleLoginScreen(),
+                  SizedBox(height: 15),
+                  
                   Row(
                     children: [
                       Spacer(),

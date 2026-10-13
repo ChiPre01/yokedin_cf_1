@@ -1,4 +1,6 @@
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:yoked_in/auth/google_auth.dart';
 import 'package:yoked_in/auth/google_auth_service.dart';
@@ -14,25 +16,35 @@ class GoogleAuthNotifier extends StateNotifier<GoogleAuthState> {
 
     try {
       final result = await _firebaseServices.signInWithGoogle();
-      state = state.copyWith(isLoading: false);
 
       if (result != null && result.user != null) {
-        // Small delay to let auth state sync
-        await Future.delayed(const Duration(milliseconds: 300));
+        state = state.copyWith(isLoading: false);
 
         if (context.mounted) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const MainHomeScreen()),
+            MaterialPageRoute(
+              builder: (context) => const MainHomeScreen(),
+            ),
           );
         }
       } else {
-        state = state.copyWith(error: 'Google Sign-In canceled');
+        debugPrint(
+          '[GOOGLE AUTH PROVIDER] Sign-in returned no user or was canceled.',
+        );
+
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Google Sign-In returned no authenticated user.',
+        );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('[GOOGLE AUTH PROVIDER] Sign-in failed: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
       state = state.copyWith(
         isLoading: false,
-        error: 'Google Sign-In failed: ${e.toString()}',
+        error: e.toString(),
       );
     }
   }

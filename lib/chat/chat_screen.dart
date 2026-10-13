@@ -219,7 +219,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 final result = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
-                    title: const Text('Unfriend User'),
+                    title: const Text('Disconnect'),
                     content: Text(
                       'Are you sure you want to unfriend ${widget.otherUser.name}?',
                     ),
@@ -230,7 +230,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
                       TextButton(
                         onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Unfriend'),
+                        child: const Text('Disconnect'),
                       ),
                     ],
                   ),
@@ -246,14 +246,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     showAppSnackbar(
                       context: context,
                       type: SnackbarType.success,
-                      description: "Your Friendship is Disconnect",
+                      description: "You Have Been Disconnected",
                     );
                   }
                 }
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(value: 'unfriend', child: Text('Unfriend')),
+              const PopupMenuItem(value: 'unfriend', child: Text('End Connection')),
             ],
           ),
         ],
