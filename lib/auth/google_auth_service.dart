@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:yoked_in/auth/display_name_service.dart';
 import 'package:yoked_in/auth/notification_service.dart';
 
 final firebaseServicesProvider = Provider<FirebaseServices>((ref) {
@@ -13,8 +14,10 @@ class FirebaseServices {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
-  // Keep one initialization Future so initialization cannot run twice
-  // through this service.
+  static final DisplayNameService _displayNameService =
+      DisplayNameService();
+
+  // Keep one initialization Future so Google Sign-In is initialized once.
   static Future<void>? _initialization;
 
   static Future<void> initSignIn() {
@@ -31,9 +34,7 @@ class FirebaseServices {
       final UserCredential userCredential;
 
       if (kIsWeb) {
-        // Chrome: use Firebase Authentication's web popup.
-        // Do not initialize or call GoogleSignIn.instance.authenticate()
-        // on the web.
+        // Web: authenticate using Firebase's Google popup.
         debugPrint('[GOOGLE AUTH] Using Firebase Google popup on web...');
 
         userCredential = await _auth.signInWithPopup(
@@ -93,36 +94,84 @@ class FirebaseServices {
       final DocumentReference<Map<String, dynamic>> userDoc =
           FirebaseFirestore.instance.collection('users').doc(user.uid);
 
+      // Check whether this Google account already has a Firestore profile.
       final DocumentSnapshot<Map<String, dynamic>> docSnapshot =
           await userDoc.get();
 
+      // Get Google's display name, using "User" if it is empty.
+      final String googleName = (user.displayName ?? '').trim().isEmpty
+          ? 'User'
+          : user.displayName!.trim();
+
+      String finalName;
+
+      if (docSnapshot.exists) {
+        // Returning users keep their existing Firestore display name.
+        final existingName = docSnapshot.data()?['name'];
+
+        if (existingName is String && existingName.trim().isNotEmpty) {
+          finalName = existingName.trim();
+
+          debugPrint(
+            '[GOOGLE AUTH] Existing profile found. '
+            'Keeping saved name: $finalName',
+          );
+        } else {
+          // Repair a profile whose name is missing or empty.
+          finalName = await _displayNameService.generateAvailableName(
+            googleName,
+          );
+
+          debugPrint(
+            '[GOOGLE AUTH] Generated name for incomplete profile: $finalName',
+          );
+        }
+      } else {
+        // New Google users get the original name if available,
+        // or the first available numeric suffix if it is already taken.
+        finalName = await _displayNameService.generateAvailableName(
+          googleName,
+        );
+
+        debugPrint('[GOOGLE AUTH] Available display name: $finalName');
+      }
+
+      // Keep Firebase Authentication's display name consistent with
+      // the name stored in Firestore.
+      if (user.displayName != finalName) {
+        await user.updateDisplayName(finalName);
+      }
+
       String? token;
 
-      // Notifications should not prevent Google authentication from
-      // succeeding if an FCM token is unavailable.
+      // Notifications must not prevent authentication from succeeding.
       try {
         token = await NotificationService().getToken();
       } catch (e) {
         debugPrint('[GOOGLE AUTH] Could not retrieve FCM token: $e');
       }
 
-      // Merge the profile fields without deleting any existing user data.
+      // Save the profile in the existing users collection.
+      // Merge preserves other fields already used by your application.
       await userDoc.set({
         'uid': user.uid,
-        'name': user.displayName ?? '',
+        ..._displayNameService.nameFields(finalName),
         'email': user.email ?? '',
         'photoURL': user.photoURL,
         'provider': 'google',
         'isOnline': true,
         'lastSeen': FieldValue.serverTimestamp(),
-        if (!docSnapshot.exists) 'createdAt': FieldValue.serverTimestamp(),
+        if (!docSnapshot.exists)
+          'createdAt': FieldValue.serverTimestamp(),
         'token': token,
       }, SetOptions(merge: true));
 
-      debugPrint('[GOOGLE AUTH] Firestore profile saved successfully.');
+      debugPrint(
+        '[GOOGLE AUTH] Firestore profile saved successfully. '
+        'Name: $finalName',
+      );
 
-      // Update the FCM token if possible, but do not turn a successful
-      // sign-in into a failure if notifications cannot be configured.
+      // Update the notification token if possible.
       try {
         await NotificationService().updateUserToken(user.uid);
       } catch (e) {
@@ -140,6 +189,12 @@ class FirebaseServices {
       rethrow;
     } on FirebaseAuthException catch (e, stackTrace) {
       debugPrint('[GOOGLE AUTH] FirebaseAuthException');
+      debugPrint('[GOOGLE AUTH] Code: ${e.code}');
+      debugPrint('[GOOGLE AUTH] Message: ${e.message}');
+      debugPrintStack(stackTrace: stackTrace);
+      rethrow;
+    } on FirebaseException catch (e, stackTrace) {
+      debugPrint('[GOOGLE AUTH] Firestore/Firebase exception');
       debugPrint('[GOOGLE AUTH] Code: ${e.code}');
       debugPrint('[GOOGLE AUTH] Message: ${e.message}');
       debugPrintStack(stackTrace: stackTrace);
@@ -165,7 +220,9 @@ class FirebaseServices {
                 'lastSeen': FieldValue.serverTimestamp(),
               });
         } catch (e) {
-          debugPrint('[GOOGLE AUTH] Could not update offline status: $e');
+          debugPrint(
+            '[GOOGLE AUTH] Could not update offline status: $e',
+          );
         }
       }
 

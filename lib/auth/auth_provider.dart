@@ -11,7 +11,7 @@ class AuthFormNotifier extends StateNotifier<AuthFormState> {
 
   void updateName(String name) {
     String? nameError;
-    if (name.isNotEmpty && name.length < 6) {
+    if (name.isNotEmpty && name.length < 1) {
       nameError = "Provide your full name";
     }
     state = state.copyWith(name: name, nameError: nameError);
