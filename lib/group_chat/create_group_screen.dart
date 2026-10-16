@@ -1,4 +1,3 @@
-
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -6,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:yoked_in/provider/chat_provider.dart';
 import 'package:yoked_in/provider/group_chat_provider.dart';
+import 'package:yoked_in/widgets/user_avatar.dart';
 import 'package:yoked_in/widgets/utilis.dart';
 
 class CreateGroupScreen extends ConsumerStatefulWidget {
@@ -121,9 +121,8 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             onTap: _pickImage,
             child: CircleAvatar(
               radius: 50,
-              backgroundImage: _groupImage != null
-                  ? FileImage(_groupImage!)
-                  : null,
+              backgroundImage:
+                  _groupImage != null ? FileImage(_groupImage!) : null,
               child: _groupImage == null
                   ? const Icon(Icons.add_a_photo, size: 40)
                   : null,
@@ -190,13 +189,10 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                           },
                           title: Text(user.name),
                           subtitle: Text(user.email),
-                          secondary: CircleAvatar(
-                            backgroundImage: user.photoURL != null
-                                ? NetworkImage(user.photoURL!)
-                                : null,
-                            child: user.photoURL == null
-                                ? Text(user.name[0].toUpperCase())
-                                : null,
+                          secondary: UserAvatar(
+                            photoUrl: user.photoURL,
+                            radius: 20,
+                            fallbackIcon: Icons.person,
                           ),
                         );
                       },

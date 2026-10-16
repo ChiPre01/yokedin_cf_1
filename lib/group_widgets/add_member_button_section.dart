@@ -1,9 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yoked_in/chat/user_model.dart';
 import 'package:yoked_in/group_chat/group_chat_model.dart';
 import 'package:yoked_in/provider/group_chat_provider.dart';
+import 'package:yoked_in/widgets/user_avatar.dart';
 import 'package:yoked_in/widgets/utilis.dart';
 
 class AddMemberButtonSection extends ConsumerWidget {
@@ -94,13 +94,10 @@ class AddMemberButtonSection extends ConsumerWidget {
             itemBuilder: (context, index) {
               final user = availableUsers[index];
               return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: user.photoURL != null
-                      ? NetworkImage(user.photoURL!)
-                      : null,
-                  child: user.photoURL == null
-                      ? Text(user.name[0].toUpperCase())
-                      : null,
+                leading: UserAvatar(
+                  photoUrl: user.photoURL,
+                  radius: 20,
+                  fallbackIcon: Icons.person,
                 ),
                 title: Text(user.name),
                 subtitle: Text(user.email),

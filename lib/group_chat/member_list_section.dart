@@ -1,9 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yoked_in/group_chat/group_chat_model.dart';
 import 'package:yoked_in/provider/group_chat_provider.dart';
 import 'package:yoked_in/provider/user_status_provider.dart';
+import 'package:yoked_in/widgets/user_avatar.dart';
 import 'package:yoked_in/widgets/utilis.dart';
 
 class MembersListSection extends ConsumerWidget {
@@ -42,13 +42,10 @@ class MembersListSection extends ConsumerWidget {
             return Stack(
               children: [
                 ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: user.photoURL != null
-                        ? NetworkImage(user.photoURL!)
-                        : null,
-                    child: user.photoURL == null
-                        ? Text(user.name[0].toUpperCase())
-                        : null,
+                  leading: UserAvatar(
+                    photoUrl: user.photoURL,
+                    radius: 20,
+                    fallbackIcon: Icons.person,
                   ),
                   title: Text(user.name + (isCurrentUser ? ' (You)' : '')),
                   subtitle: Text(isMemberAdmin ? 'Admin' : 'Member'),
@@ -94,9 +91,8 @@ class MembersListSection extends ConsumerWidget {
                       return statusAsync.when(
                         data: (isOnline) => CircleAvatar(
                           radius: 5,
-                          backgroundColor: isOnline
-                              ? Colors.green
-                              : Colors.grey,
+                          backgroundColor:
+                              isOnline ? Colors.green : Colors.grey,
                         ),
                         loading: () => const CircleAvatar(
                           radius: 5,

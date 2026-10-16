@@ -1,4 +1,3 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +8,7 @@ import 'package:yoked_in/helper/time_format.dart';
 import 'package:yoked_in/other_screens/requests_screen.dart';
 import 'package:yoked_in/provider/chat_provider.dart';
 import 'package:yoked_in/provider/user_status_provider.dart';
+import 'package:yoked_in/widgets/user_avatar.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
@@ -152,17 +152,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       // User profile + online/offline status
                       leading: Stack(
                         children: [
-                          CircleAvatar(
-                            backgroundImage: otherUser.photoURL != null
-                                ? NetworkImage(otherUser.photoURL!)
-                                : null,
-                            child: otherUser.photoURL == null
-                                ? Text(
-                                    otherUser.name.isNotEmpty
-                                        ? otherUser.name[0].toUpperCase()
-                                        : 'U',
-                                  )
-                                : null,
+                          UserAvatar(
+                            photoUrl: otherUser.photoURL,
+                            radius: 20,
+                            fallbackIcon: Icons.person,
                           ),
                           // Online/Offline indicator
                           Positioned(
@@ -176,11 +169,9 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                 return statusAsync.when(
                                   data: (isOnline) => CircleAvatar(
                                     radius: 5,
-                                    backgroundColor: isOnline
-                                        ? Colors.green
-                                        : Colors.grey,
+                                    backgroundColor:
+                                        isOnline ? Colors.green : Colors.grey,
                                   ),
-
                                   loading: () => Text(otherUser.email),
                                   error: (_, __) => Text(otherUser.email),
                                 );
@@ -218,9 +209,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                             formatTime(chat.lastMessageTime),
                             style: TextStyle(
                               fontSize: 12,
-                              color: shouldShowUnread
-                                  ? Colors.blue
-                                  : Colors.grey,
+                              color:
+                                  shouldShowUnread ? Colors.blue : Colors.grey,
                             ),
                           ),
                           if (shouldShowUnread)

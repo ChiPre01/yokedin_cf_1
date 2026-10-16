@@ -1,10 +1,10 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yoked_in/chat/chat_screen.dart';
 import 'package:yoked_in/provider/chat_provider.dart';
 import 'package:yoked_in/provider/user_status_provider.dart';
 import 'package:yoked_in/widgets/dot_indicator.dart';
+import 'package:yoked_in/widgets/user_avatar.dart';
 
 class TitleOfChatScreen extends StatelessWidget {
   const TitleOfChatScreen({super.key, required this.widget});
@@ -22,17 +22,10 @@ class TitleOfChatScreen extends StatelessWidget {
         return statusAsync.when(
           data: (isOnline) => Row(
             children: [
-              CircleAvatar(
+              UserAvatar(
+                photoUrl: widget.otherUser.photoURL,
                 radius: 16,
-                backgroundImage: widget.otherUser.photoURL != null
-                    ? NetworkImage(widget.otherUser.photoURL!)
-                    : null,
-                child: widget.otherUser.photoURL == null
-                    ? Text(
-                        widget.otherUser.name[0].toUpperCase(),
-                        style: const TextStyle(fontSize: 14),
-                      )
-                    : null,
+                fallbackIcon: Icons.person,
               ),
               const SizedBox(width: 12),
               Expanded(

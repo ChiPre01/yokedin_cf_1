@@ -1,7 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'package:yoked_in/group_chat/group_chat_model.dart';
 import 'package:yoked_in/helper/current_time.dart';
+import 'package:yoked_in/widgets/user_avatar.dart';
 
 class ChatMessage extends StatelessWidget {
   final GroupMessageModel message;
@@ -22,17 +22,10 @@ class ChatMessage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!isMe)
-              CircleAvatar(
+              UserAvatar(
+                photoUrl: message.senderPhotoURL,
                 radius: 16,
-                backgroundImage: message.senderPhotoURL != null
-                    ? NetworkImage(message.senderPhotoURL!)
-                    : null,
-                child: message.senderPhotoURL == null
-                    ? Text(
-                        message.senderName[0].toUpperCase(),
-                        style: const TextStyle(fontSize: 12),
-                      )
-                    : null,
+                fallbackIcon: Icons.person,
               ),
             if (!isMe) const SizedBox(width: 8),
             Flexible(
@@ -76,7 +69,6 @@ class ChatMessage extends StatelessWidget {
                           ),
                         ],
                       ),
-
                     if (message.message.isNotEmpty)
                       if (!isMe)
                         Text(

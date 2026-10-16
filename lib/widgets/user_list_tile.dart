@@ -1,4 +1,3 @@
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +7,7 @@ import 'package:yoked_in/chat/user_model.dart';
 import 'package:yoked_in/helper/navigation_helper.dart';
 import 'package:yoked_in/provider/user_list_provider.dart';
 import 'package:yoked_in/provider/user_status_provider.dart';
+import 'package:yoked_in/widgets/user_avatar.dart';
 import 'package:yoked_in/widgets/utilis.dart';
 
 class UserListTile extends ConsumerWidget {
@@ -22,13 +22,10 @@ class UserListTile extends ConsumerWidget {
 
     return ListTile(
       // Profile picture or fallback (first letter of name)
-      leading: CircleAvatar(
-        backgroundImage: user.photoURL != null
-            ? NetworkImage(user.photoURL!)
-            : null,
-        child: user.photoURL == null
-            ? Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U')
-            : null,
+      leading: UserAvatar(
+        photoUrl: user.photoURL,
+        radius: 20,
+        fallbackIcon: Icons.person,
       ),
       title: Text(user.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       // Show online/offline status in subtitle
@@ -74,7 +71,6 @@ class UserListTile extends ConsumerWidget {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         onPressed: () => _navigateToChat(context),
-
         child: buttonName(Icons.chat, "Connected"),
       );
     }
@@ -83,7 +79,6 @@ class UserListTile extends ConsumerWidget {
       if (state.isRequestSender) {
         return ElevatedButton(
           onPressed: null,
-
           child: SizedBox(
             width: 100,
             height: 32,
@@ -161,33 +156,32 @@ class UserListTile extends ConsumerWidget {
     );
   }
 
-SizedBox buttonName(IconData icon, String name) {
-  return SizedBox(
-    width: 150,
-    height: 40,
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: Colors.white, size: 18),
-        const SizedBox(width: 5),
-        Flexible(
-          child: Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
+  SizedBox buttonName(IconData icon, String name) {
+    return SizedBox(
+      width: 150,
+      height: 40,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
-
+        ],
+      ),
+    );
+  }
 
   // Navigate to chat screen when "Chat" button clicked
   Future<void> _navigateToChat(BuildContext context) async {

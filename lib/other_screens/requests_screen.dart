@@ -1,7 +1,7 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:yoked_in/provider/chat_provider.dart';
+import 'package:yoked_in/widgets/user_avatar.dart';
 import 'package:yoked_in/widgets/utilis.dart';
 
 class RequestsScreen extends ConsumerStatefulWidget {
@@ -63,20 +63,11 @@ class _RequestsScreenState extends ConsumerState<RequestsScreen> {
                 elevation: 0,
                 margin: const EdgeInsets.all(8),
                 child: ListTile(
-                  leading: CircleAvatar(
+                  leading: UserAvatar(
+                    photoUrl: request.photoURL,
                     radius: 28,
-                    backgroundImage: (request.photoURL?.isNotEmpty ?? false)
-                        ? NetworkImage(request.photoURL!)
-                        : null,
-                    child: (request.photoURL?.isEmpty ?? true)
-                        ? Text(
-                            request.senderName.isNotEmpty
-                                ? request.senderName[0].toUpperCase()
-                                : 'U',
-                          )
-                        : null,
+                    fallbackIcon: Icons.person,
                   ),
-
                   title: Text(request.senderName),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,

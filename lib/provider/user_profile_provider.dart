@@ -1,15 +1,13 @@
-
 import 'dart:async';
-import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:yoked_in/chat/user_profile_model.dart';
+import 'package:yoked_in/services/cloudflare_media_service.dart';
 
-/// Notifier
+/// Manages the signed-in user's profile data and profile photo.
 class ProfileNotifier extends StateNotifier<ProfileState> {
   late final StreamSubscription<User?> _authSubscription;
 
@@ -17,23 +15,21 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     _listenToAuthChanges();
   }
 
-  /// Listen to Firebase Auth state changes
+  /// Listen for Firebase Authentication changes.
   void _listenToAuthChanges() {
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+    _authSubscription =
+        FirebaseAuth.instance.authStateChanges().listen((user) {
       if (user != null) {
-        // User logged in - load their data
         if (state.userId != user.uid) {
-          // Only reload if it's a different user
           loadUserData(user);
         }
       } else {
-        // User logged out - clear state
         state = ProfileState(isLoading: false);
       }
     });
   }
 
-  /// Load user data from Firestore
+  /// Load the signed-in user's profile from Firestore.
   Future<void> loadUserData([User? user]) async {
     final currentUser = user ?? FirebaseAuth.instance.currentUser;
 
@@ -46,68 +42,96 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
 
     try {
       final doc = await FirebaseFirestore.instance
-          .collection("users")
+          .collection('users')
           .doc(currentUser.uid)
           .get();
 
       if (doc.exists) {
+        final data = doc.data() ?? <String, dynamic>{};
+
         state = ProfileState(
-          photoUrl: doc["photoURL"],
-          name: doc["name"],
-          email: doc["email"],
-          createdAt: (doc["createdAt"] as Timestamp?)?.toDate(),
+          photoUrl: data['photoURL'] as String?,
+          name: data['name'] as String? ?? '',
+          email: data['email'] as String? ?? currentUser.email ?? '',
+          createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
           userId: currentUser.uid,
           isLoading: false,
         );
       } else {
-        state = ProfileState(userId: currentUser.uid, isLoading: false);
+        state = ProfileState(
+          userId: currentUser.uid,
+          isLoading: false,
+        );
       }
     } catch (e) {
-      state = ProfileState(userId: currentUser.uid, isLoading: false);
+      state = ProfileState(
+        userId: currentUser.uid,
+        isLoading: false,
+      );
     }
   }
 
-  /// Force refresh user data - This method was missing!
+  /// Refresh the current user's profile.
   void refresh() {
     loadUserData();
   }
 
-  /// Pick & upload new profile image
+  /// Pick a profile photo and upload it to Cloudflare R2.
+  ///
+  /// The resulting media URL is saved in the existing Firestore
+  /// users/{uid}.photoURL field to preserve the current data structure.
   Future<bool> updateProfilePicture() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
+
+    if (user == null) {
+      return false;
+    }
 
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
 
-    if (pickedFile == null) return false;
+    final XFile? pickedFile;
+
+    try {
+      pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
+    } catch (e) {
+      return false;
+    }
+
+    if (pickedFile == null) {
+      return false;
+    }
 
     state = state.copyWith(isUploading: true);
 
-    File file = File(pickedFile.path);
-
     try {
-      // Upload to Firebase Storage
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child("profile_pictures")
-          .child("${user.uid}.jpg");
+      // Upload the image to Cloudflare R2 through the Worker.
+      final uploadResult =
+          await CloudflareMediaService.instance.uploadFile(pickedFile);
 
-      await storageRef.putFile(file);
-      final newUrl = await storageRef.getDownloadURL();
+      final newUrl = uploadResult['url'] as String;
 
-      // Update Firestore
-      await FirebaseFirestore.instance.collection("users").doc(user.uid).update(
-        {"photoURL": newUrl},
+      // Preserve the existing Firestore profile field.
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .update({
+        'photoURL': newUrl,
+      });
+
+      // Update the local profile state.
+      state = state.copyWith(
+        photoUrl: newUrl,
+        isUploading: false,
       );
 
-      // Update state
-      state = state.copyWith(photoUrl: newUrl, isUploading: false);
-
-      return true; // success
+      return true;
     } catch (e) {
       state = state.copyWith(isUploading: false);
-      return false; // failed
+      return false;
     }
   }
 
@@ -118,9 +142,8 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
   }
 }
 
-/// Provider
-final profileProvider = StateNotifierProvider<ProfileNotifier, ProfileState>((
-  ref,
-) {
+/// Riverpod provider for the user's profile.
+final profileProvider =
+    StateNotifierProvider<ProfileNotifier, ProfileState>((ref) {
   return ProfileNotifier();
 });

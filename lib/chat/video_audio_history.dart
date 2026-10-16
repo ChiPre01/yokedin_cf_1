@@ -1,8 +1,8 @@
-
 import 'package:flutter/material.dart';
 import 'package:yoked_in/chat/chat_screen.dart';
 import 'package:yoked_in/chat/message_model.dart';
 import 'package:yoked_in/helper/time_format.dart';
+import 'package:yoked_in/widgets/user_avatar.dart';
 
 class VideoAndAudioCallHistory extends StatelessWidget {
   const VideoAndAudioCallHistory({
@@ -25,22 +25,14 @@ class VideoAndAudioCallHistory extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
       child: Row(
-        mainAxisAlignment: isMe
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!isMe) ...[
-            CircleAvatar(
+            UserAvatar(
+              photoUrl: widget.otherUser.photoURL,
               radius: 16,
-              backgroundImage: widget.otherUser.photoURL != null
-                  ? NetworkImage(widget.otherUser.photoURL!)
-                  : null,
-              child: widget.otherUser.photoURL == null
-                  ? Text(
-                      widget.otherUser.name[0].toUpperCase(),
-                      style: const TextStyle(fontSize: 12),
-                    )
-                  : null,
+              fallbackIcon: Icons.person,
             ),
             const SizedBox(width: 8),
           ],
